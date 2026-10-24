@@ -137,7 +137,7 @@ body.reading,html:has(body.reading){overscroll-behavior:none}
 #curl .vfold{position:absolute;background:linear-gradient(90deg,transparent 0,var(--fold) 36%,var(--fold2) 50%,var(--fold) 64%,transparent 100%)}
 #curl .leaf{will-change:transform}
 .flow{font-family:var(--rfont);font-size:var(--fs);line-height:var(--lh);column-fill:auto;hyphens:auto;-webkit-hyphens:auto;overflow-wrap:break-word;font-kerning:normal;text-rendering:optimizeLegibility;-webkit-user-select:text;user-select:text}
-.flow p{margin:0;text-indent:1.4em;orphans:2;widows:2;hanging-punctuation:first allow-end last}
+.flow p{margin:0;text-indent:1.4em;orphans:2;widows:2;hanging-punctuation:allow-end}
 .flow .orn{height:calc(var(--colh) * .16);display:flex;align-items:flex-end;justify-content:flex-start;padding-bottom:1.1em;break-after:avoid}
 .flow .orn::after{content:"";width:2.2em;height:2px;border-radius:1px;background:var(--accent);opacity:.75}
 .flow .opener{font-size:1.65em!important;line-height:1.15!important;font-weight:600;letter-spacing:-.012em;margin:0 0 1.15em!important;text-align:left}
@@ -1376,7 +1376,7 @@ function makeTurn(dir){
     }
     front.classList.add('front');backF.classList.add('back');front.style.left=backF.style.left='0px';
     const bleed=(src,dst)=>{const c=src.cloneNode(true);c.querySelectorAll('.shade,.bleed').forEach(x=>x.remove());c.className='face bleed';c.style.cssText='left:0;width:100%;transform:scaleX(-1)';dst.insertBefore(c,dst.querySelector('.shade'))};
-    const fC=front.cloneNode(true),bC=backF.cloneNode(true);bleed(bC,front);bleed(fC,backF);
+    
     leaf.append(front,backF);layer.append(stat,cast,leaf);
     const fs=front.querySelector('.shade'),bs=backF.querySelector('.shade');
     set=t=>{leaf.style.transform=`rotateY(${-dir*180*t}deg)`;cast.style.opacity=Math.sin(Math.PI*t);fs.style.opacity=Math.min(1,t*2);bs.style.opacity=Math.min(1,(1-t)*2)};

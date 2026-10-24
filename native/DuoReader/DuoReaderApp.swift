@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreSpotlight
 
 @main
 struct DuoReaderApp: App {
@@ -6,6 +7,12 @@ struct DuoReaderApp: App {
         WindowGroup {
             ReaderWebView()
                 .ignoresSafeArea()
+                .onOpenURL { url in
+                    NativeBridge.shared.importFile(url)
+                }
+                .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                    NativeBridge.shared.openFromSpotlight(activity)
+                }
         }
     }
 }

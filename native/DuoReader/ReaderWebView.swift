@@ -16,6 +16,7 @@ final class WebHostController: UIViewController, WKNavigationDelegate, WKUIDeleg
     private let lightTap = UIImpactFeedbackGenerator(style: .light)
     private let mediumTap = UIImpactFeedbackGenerator(style: .medium)
     private let notifier = UINotificationFeedbackGenerator()
+    private var savedBrightness: CGFloat?
 
     override func loadView() {
         let config = WKWebViewConfiguration()
@@ -49,13 +50,37 @@ final class WebHostController: UIViewController, WKNavigationDelegate, WKUIDeleg
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        NativeBridge.shared.host = self
         lightTap.prepare()
+        NotificationCenter.default.addObserver(self, selector: #selector(restoreBrightness), name: UIApplication.willResignActiveNotification, object: nil)
         if let url = URL(string: "duoreader://app/index.html") {
             webView.load(URLRequest(url: url))
         }
     }
 
     override var prefersHomeIndicatorAutoHidden: Bool { true }
+
+    func runJavaScript(_ script: String) {
+        webView.evaluateJavaScript(script, completionHandler: nil)
+    }
+
+    private var screen: UIScreen? {
+        view.window?.windowScene?.screen
+    }
+
+    @objc func restoreBrightness() {
+        if let saved = savedBrightness {
+            screen?.brightness = saved
+            savedBrightness = nil
+        }
+    }
+
+    private func setDim(_ amount: Double) {
+        guard let screen = screen else { return }
+        if savedBrightness == nil { savedBrightness = screen.brightness }
+        let base = savedBrightness ?? screen.brightness
+        screen.brightness = max(0.03, base * CGFloat(1 - min(0.85, amount * 1.4)))
+    }
 
     // MARK: Messages from the web app
 
@@ -75,6 +100,41 @@ final class WebHostController: UIViewController, WKNavigationDelegate, WKUIDeleg
             }
         case "reading":
             UIApplication.shared.isIdleTimerDisabled = (body["on"] as? Bool) ?? false
+        case "ready":
+            NativeBridge.shared.markReady()
+        case "state":
+            NativeBridge.shared.receiveState(body)
+        case "speak":
+            Speaker.shared.speak(
+                text: body["text"] as? String ?? "",
+                offset: body["offset"] as? Int ?? 0,
+                rate: body["rate"] as? Double ?? 1.0,
+                title: body["title"] as? String ?? "",
+                author: body["author"] as? String ?? ""
+            )
+        case "speechPause":
+            Speaker.shared.pause()
+        case "speechResume":
+            Speaker.shared.resume()
+        case "speechStop":
+            Speaker.shared.stop()
+        case "bright":
+            if (body["restore"] as? Bool) == true {
+                restoreBrightness()
+            } else if let dim = body["dim"] as? Double {
+                setDim(dim)
+            }
+        case "icon":
+            let name = body["name"] as? String
+            if UIApplication.shared.supportsAlternateIcons {
+                UIApplication.shared.setAlternateIconName((name?.isEmpty ?? true) ? nil : name) { _ in }
+            }
+        case "reminders":
+            Reminders.shared.configure(
+                on: (body["on"] as? Bool) ?? false,
+                hour: body["hour"] as? Int ?? 19,
+                minute: body["minute"] as? Int ?? 30
+            )
         default:
             break
         }
@@ -100,7 +160,12 @@ final class WebHostController: UIViewController, WKNavigationDelegate, WKUIDeleg
         return nil
     }
 
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        NativeBridge.shared.markNotReady()
+    }
+
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        NativeBridge.shared.markNotReady()
         webView.reload()
     }
 }
@@ -125,6 +190,19 @@ final class BundleSchemeHandler: NSObject, WKURLSchemeHandler {
         var path = url.path
         while path.hasPrefix("/") { path.removeFirst() }
         if path.isEmpty { path = "index.html" }
+
+        if path.hasPrefix("__import/") {
+            let relative = String(path.dropFirst("__import/".count))
+            let fileURL = NativeBridge.importFolder.appendingPathComponent(relative)
+            if let data = try? Data(contentsOf: fileURL),
+               let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/octet-stream", "Content-Length": String(data.count)]) {
+                urlSchemeTask.didReceive(response)
+                urlSchemeTask.didReceive(data)
+                urlSchemeTask.didFinish()
+                try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent())
+                return
+            }
+        }
         let name = (path as NSString).lastPathComponent
         let folder = (path as NSString).deletingLastPathComponent
 

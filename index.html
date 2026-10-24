@@ -203,7 +203,7 @@ input[type=time]{font:inherit;font-size:16px;color:var(--ink);background:var(--s
 /* chrome */
 .chrome-bar{position:absolute;left:0;right:0;z-index:3;background:var(--glass);-webkit-backdrop-filter:saturate(180%) blur(22px);backdrop-filter:saturate(180%) blur(22px);
   padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px));transition:transform .28s cubic-bezier(.2,.8,.2,1),opacity .28s}
-#bar{top:0;padding-top:env(safe-area-inset-top,0px);display:flex;align-items:center;gap:2px;height:calc(env(safe-area-inset-top,0px) + 50px);border-bottom:.5px solid var(--line)}
+#bar{top:0;padding-top:max(env(safe-area-inset-top,0px),18px);display:flex;align-items:center;gap:2px;height:calc(max(env(safe-area-inset-top,0px),18px) + 52px);border-bottom:.5px solid var(--line)}
 #bar .ttl{flex:1;min-width:0;text-align:center;font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px}
 #bar2{bottom:0;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 12px);padding-top:12px;border-top:.5px solid var(--line)}
 #bar2 .row2{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;max-width:720px;margin:0 auto;padding:0 8px}

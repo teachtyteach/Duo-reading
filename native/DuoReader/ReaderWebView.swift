@@ -105,13 +105,32 @@ final class WebHostController: UIViewController, WKNavigationDelegate, WKUIDeleg
         case "state":
             NativeBridge.shared.receiveState(body)
         case "speak":
+            var segments: [Speaker.Segment] = []
+            if let raw = body["segments"] as? [[Any]] {
+                for item in raw where item.count >= 2 {
+                    guard let text = item[1] as? String else { continue }
+                    let offset = (item[0] as? NSNumber)?.intValue ?? 0
+                    let heading = item.count > 2 && ((item[2] as? NSNumber)?.intValue ?? 0) == 1
+                    segments.append(Speaker.Segment(offset: offset, text: text, isHeading: heading))
+                }
+            } else if let text = body["text"] as? String {
+                segments = [Speaker.Segment(offset: (body["offset"] as? NSNumber)?.intValue ?? 0, text: text, isHeading: false)]
+            }
             Speaker.shared.speak(
-                text: body["text"] as? String ?? "",
-                offset: body["offset"] as? Int ?? 0,
-                rate: body["rate"] as? Double ?? 1.0,
+                segments: segments,
+                rate: (body["rate"] as? NSNumber)?.doubleValue ?? 1.0,
+                voiceID: body["voice"] as? String ?? "",
                 title: body["title"] as? String ?? "",
                 author: body["author"] as? String ?? ""
             )
+        case "voices":
+            Speaker.shared.sendVoices()
+        case "voiceSample":
+            Speaker.shared.sample(voiceID: body["id"] as? String ?? "")
+        case "personalVoice":
+            Speaker.shared.requestPersonalVoice()
+        case "share":
+            shareFile(name: body["name"] as? String ?? "Duo Reader Backup.json", text: body["text"] as? String ?? "")
         case "speechPause":
             Speaker.shared.pause()
         case "speechResume":
@@ -138,6 +157,29 @@ final class WebHostController: UIViewController, WKNavigationDelegate, WKUIDeleg
         default:
             break
         }
+    }
+
+    private func shareFile(name: String, text: String) {
+        let safeName = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(safeName)
+        do {
+            try Data(text.utf8).write(to: url, options: .atomic)
+        } catch {
+            NativeBridge.shared.send("window.duoToast && window.duoToast('The backup couldn’t be saved.')")
+            return
+        }
+        let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        if let popover = sheet.popoverPresentationController {
+            popover.sourceView = view
+            popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
+            popover.permittedArrowDirections = []
+        }
+        sheet.completionWithItemsHandler = { _, _, _, _ in
+            try? FileManager.default.removeItem(at: url)
+        }
+        var top: UIViewController = self
+        while let next = top.presentedViewController { top = next }
+        top.present(sheet, animated: true)
     }
 
     // MARK: Links open in Safari
@@ -249,6 +291,7 @@ final class BundleSchemeHandler: NSObject, WKURLSchemeHandler {
         case "woff": return "font/woff"
         case "woff2": return "font/woff2"
         case "ttf": return "font/ttf"
+        case "txt": return "text/plain; charset=utf-8"
         default: return "application/octet-stream"
         }
     }

@@ -624,7 +624,9 @@ applyTheme();
 
 const reader=$('#reader'),area=$('#area'),flow=$('#flow'),ink=$('#ink'),ictx=ink.getContext('2d');window.__ictx=ictx;
 function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('on'),m.length>45?4600:2400)}
-const haptic=(()=>{let l=null;return()=>{if(!S.set.haptics)return;try{if(navigator.vibrate&&navigator.vibrate(8))return;if(!l){l=document.createElement('label');l.setAttribute('aria-hidden','true');l.style.cssText='position:fixed;left:-200px;top:0;opacity:0;pointer-events:none';const i=document.createElement('input');i.type='checkbox';i.setAttribute('switch','');i.tabIndex=-1;l.appendChild(i);document.body.appendChild(l)}l.click()}catch(_){}}})();
+const NATIVE=window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.native;
+const native=m=>{try{NATIVE&&NATIVE.postMessage(m)}catch(_){}};
+const haptic=(()=>{let l=null;return(style)=>{if(!S.set.haptics)return;if(NATIVE){native({type:'haptic',style:style||'light'});return}try{if(navigator.vibrate&&navigator.vibrate(8))return;if(!l){l=document.createElement('label');l.setAttribute('aria-hidden','true');l.style.cssText='position:fixed;left:-200px;top:0;opacity:0;pointer-events:none';const i=document.createElement('input');i.type='checkbox';i.setAttribute('switch','');i.tabIndex=-1;l.appendChild(i);document.body.appendChild(l)}l.click()}catch(_){}}})();
 const dayKey=(d=new Date())=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 function fmtMin(sec){const m=Math.round(sec/60);if(m<1)return'under 1 min';if(m<60)return m+' min';const h=Math.floor(m/60),r=m%60;return h+' h'+(r?' '+r+' min':'')}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -637,7 +639,7 @@ async function getCache(id){try{return await idb('readonly',s=>s.get(id),'cache'
 async function putCache(c){try{await idb('readwrite',s=>s.put(c),'cache')}catch(_){}}
 async function delCache(id){try{await idb('readwrite',s=>s.delete(id),'cache')}catch(_){}}
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(_){}
-async function allBooks(){try{return (await idb('readonly',s=>s.getAll()))||[]}catch(e){return S.mem}}
+async function allBooks(){try{return (await idb('readonly',s=>s.getAll()))||[]}catch(e){if(!allBooks.warned){allBooks.warned=1;setTimeout(()=>toast('Book storage isn’t available, so added books won’t be saved.'),1500)}return S.mem}}
 async function putBook(b){try{await idb('readwrite',s=>s.put(b))}catch(e){S.mem.push(b)}}
 async function delBook(id){try{await idb('readwrite',s=>s.delete(id))}catch(e){S.mem=S.mem.filter(b=>b.id!==id)}}
 const saveP=()=>LS.set('dr.progress',S.progress),saveMeta=()=>LS.set('dr.meta',S.meta),saveHL=()=>LS.set('dr.hl',S.hl),saveBM=()=>LS.set('dr.bm',S.bm),saveStats=()=>LS.set('dr.stats',S.stats);
@@ -994,7 +996,7 @@ setInterval(()=>{
   const k=dayKey();const d=S.stats.days[k]=S.stats.days[k]||{sec:0,pages:0};d.sec++;
   const p=S.progress[S.rec.id];if(p)p.sec=(p.sec||0)+1;
   if(++tick%10===0){saveStats();saveP()}
-  if(d.sec===goalSec()){toast('Daily goal met!');haptic()}
+  if(d.sec===goalSec()){toast('Daily goal met!');haptic('success')}
 },1000);
 
 /* ---------- reader: open/close ---------- */
@@ -1059,13 +1061,14 @@ async function openBook(rec,fromEl){
     if(pr&&pr.ch!=null){const ch=Math.min(pr.ch,b.chapters.length-1);renderChapter(ch,pr.off!=null?{off:pr.off}:{frac:pr.frac||0})}
     else renderChapter(0,{});
     if(fly){const wait=Math.max(0,380-(performance.now()-t0));setTimeout(()=>landFlyer(fly),wait)}
+    native({type:'reading',on:true});
     try{wake=await navigator.wakeLock?.request('screen')}catch(_){}
   }catch(e){console.error(e);fly&&fly.remove();toast(friendly(e,'open'))}
   finally{$('#loading').hidden=true}
 }
 function getDocFor(b,i){if(!b.docs[i])b.docs[i]=new DOMParser().parseFromString('<!doctype html><body>'+b.chapters[i].html,'text/html');return b.docs[i]}
 function closeBook(){
-  finishAnim();closeSheets();save();saveStats();setPen(false);
+  finishAnim();closeSheets();save();saveStats();setPen(false);native({type:'reading',on:false});
   reader.hidden=true;$('#library').hidden=false;document.body.classList.remove('reading');
   (S.book?.urls||[]).forEach(u=>URL.revokeObjectURL(u));S.book=null;S.rec=null;flow.innerHTML='';
   try{wake&&wake.release()}catch(_){}wake=null;
@@ -1930,7 +1933,8 @@ loadLibrary().then(()=>{
   const sp=$('#splash');requestAnimationFrame(()=>{sp.classList.add('out');setTimeout(()=>sp.remove(),500)});
   if(!LS.get('dr.welcomed',0))showWelcome();
 });
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+if(NATIVE)document.documentElement.classList.add('native');
 })();
 </script>
 </body>

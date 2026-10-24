@@ -486,7 +486,7 @@ const FONTS=[
  ['lexend','Lexend',"'Lexend',system-ui,sans-serif"],
  ['georgia','Georgia',"Georgia,'Times New Roman',serif"]
 ];
-const DEF={theme:'original',font:'newyork',size:19,lh:1.5,margin:28,mode:'auto',justify:'auto',turn:'curl',dropcaps:true,foldCover:true,goal:15,pencil:true,spreadPics:true,bedtime:'off',bedStart:'21:30',bedEnd:'06:30',warm:.35,dim:.15};
+const DEF={theme:'original',font:'newyork',size:19,lh:1.5,margin:28,mode:'auto',justify:'auto',turn:'curl',dropcaps:true,foldCover:true,goal:15,pencil:true,spreadPics:true,hingeAdj:0,bedtime:'off',bedStart:'21:30',bedEnd:'06:30',warm:.35,dim:.15};
 const S={set:Object.assign({},DEF,LS.get('dr.settings',{})),progress:LS.get('dr.progress',{}),meta:LS.get('dr.meta',{}),hl:LS.get('dr.hl',{}),bm:LS.get('dr.bm',{}),
   stats:LS.get('dr.stats',{days:{}}),ink:LS.get('dr.ink',{}),imgSize:new Map(),spreads:[],penMode:false,tool:'pen',penColor:{pen:'ink',hi:'#ffd60a'},undo:[],inkDrawn:[],rate:LS.get('dr.rate',17),last:LS.get('dr.last',null),filter:'all',
   books:[],mem:[],book:null,rec:null,ch:0,page:0,pages:1,cols:1,step:1,ncols:1,colW:1,g:0,off:0,nextOff:0,idx:[],len:0,chrome:true,turned:false,anim:null,lastAct:Date.now(),lastTurn:0};
@@ -893,9 +893,23 @@ function wantsTwo(){
   const W=innerWidth,H=innerHeight;const A=W-2*Math.max(16,st.margin);const col=(A-Math.max(40,st.margin*2))/2;
   return col>=250&&W/H>=0.7;
 }
+const probe=document.createElement('div');probe.style.cssText='position:fixed;top:0;width:0;height:0;visibility:hidden;pointer-events:none';document.body.appendChild(probe);
+function envPx(expr){probe.style.left='';probe.style.left=expr;const v=parseFloat(getComputedStyle(probe).left);return isFinite(v)?v:null}
+function hingeInfo(){
+  const W=innerWidth;
+  const r0=envPx('env(viewport-segment-right 0 0, -1px)'),l1=envPx('env(viewport-segment-left 1 0, -1px)');
+  if(r0!=null&&l1!=null&&r0>0&&l1>=r0&&l1<W)return{c:(r0+l1)/2,w:l1-r0};
+  return{c:W/2,w:0};
+}
 function layout(){
   const two=wantsTwo();S.cols=two?2:1;reader.classList.toggle('spread',two);
-  const g=two?Math.max(40,S.set.margin*2):S.set.margin*2;
+  let g=two?Math.max(40,S.set.margin*2):S.set.margin*2;
+  if(two){
+    const W=innerWidth,h=hingeInfo();h.c+=(+S.set.hingeAdj||0);g=Math.max(g,h.w+24);
+    const iL=envPx('env(safe-area-inset-left, 0px)')||0,iR=envPx('env(safe-area-inset-right, 0px)')||0;
+    const half=Math.max(120,Math.min(h.c-Math.max(16,iL)-S.set.margin+16,W-h.c-Math.max(16,iR)-S.set.margin+16));
+    reader.style.setProperty('--sideL',Math.round(h.c-half)+'px');reader.style.setProperty('--sideR',Math.round(W-h.c-half)+'px');
+  }else{reader.style.removeProperty('--sideL');reader.style.removeProperty('--sideR')}
   reader.style.setProperty('--gap',g+'px');
   const A=area.clientWidth,H=area.clientHeight;
   reader.style.setProperty('--colh',Math.max(100,H-8)+'px');
@@ -1611,6 +1625,7 @@ function renderSettings(){
     <div class="slrow"><span style="font-size:11px">≡</span><input id="lh" type="range" min="1.25" max="2" step="0.05" value="${st.lh}" aria-label="Line spacing"><span style="font-size:17px">☰</span></div>
     <div class="srow"><div class="lbl">Margins</div>${seg('margin',[[16,'Narrow'],[28,'Medium'],[44,'Wide']])}</div>
     <div class="srow"><div class="lbl">Pages</div>${seg('mode',[['auto','Auto'],['one','One'],['two','Two']])}</div>
+    ${S.cols===2?`<div class="srow"><div class="lbl">Spine position · line it up with the fold</div><div style="display:flex;align-items:center;gap:10px"><input id="hingeAdj" type="range" min="-60" max="60" step="1" value="${st.hingeAdj||0}" style="flex:1;accent-color:var(--accent)" aria-label="Spine position"><button class="pill" id="hingeReset" style="padding:6px 12px;font-size:13px">Reset</button></div></div>`:''}
     <div class="srow"><div class="lbl">Page turn</div>${seg('turn',[['curl','Curl'],['slide','Slide'],['none','None']])}</div>
     <div class="srow"><div class="lbl">Justify text</div>${seg('justify',[['auto','Auto'],['true','On'],['false','Off']])}</div>
     <label class="row static"><span>Fancy chapter starts</span><input type="checkbox" class="tog" data-tog="dropcaps" ${st.dropcaps?'checked':''}></label>
@@ -1634,6 +1649,8 @@ function renderSettings(){
   $('#lh').addEventListener('input',e=>{st.lh=+e.target.value;commit()});
   B.querySelectorAll('.seg[data-key]').forEach(sg=>sg.querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=sg.dataset.key;st[k]=k==='margin'?+b.dataset.v:k==='justify'?(b.dataset.v==='auto'?'auto':b.dataset.v==='true'):b.dataset.v;commit(!['turn','bedtime'].includes(k));if(k==='bedtime')applyBed();renderSettings()}));
   B.querySelectorAll('[data-tog]').forEach(t=>t.onchange=()=>{st[t.dataset.tog]=t.checked;commit(!['foldCover','pencil'].includes(t.dataset.tog))});
+  if($('#hingeAdj')){let hT;$('#hingeAdj').addEventListener('input',e=>{st.hingeAdj=+e.target.value;LS.set('dr.settings',st);clearTimeout(hT);hT=setTimeout(()=>relayout(true),60)});
+    $('#hingeReset').onclick=()=>{st.hingeAdj=0;LS.set('dr.settings',st);relayout(true);renderSettings()}}
   const bedSet=()=>{LS.set('dr.settings',st);applyBed()};
   $('#bedStart')&&$('#bedStart').addEventListener('change',e=>{st.bedStart=e.target.value||'21:30';bedSet()});
   $('#bedEnd')&&$('#bedEnd').addEventListener('change',e=>{st.bedEnd=e.target.value||'06:30';bedSet()});

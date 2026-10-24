@@ -102,10 +102,11 @@ svg.i{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stro
   --fs:19px;--lh:1.5;--margin:28px;--gap:56px;--colh:600px;
   --sideL:calc(max(16px,env(safe-area-inset-left,0px)) + var(--margin) - 16px);
   --sideR:calc(max(16px,env(safe-area-inset-right,0px)) + var(--margin) - 16px);
-  --topH:calc(env(safe-area-inset-top,0px) + 46px); --botH:calc(env(safe-area-inset-bottom,0px) + 40px)}
+  --topH:calc(env(safe-area-inset-top,0px) + 34px); --botH:calc(env(safe-area-inset-bottom,0px) + 30px)}
+@media (max-height:520px){#reader{--topH:calc(env(safe-area-inset-top,0px) + 28px);--botH:calc(env(safe-area-inset-bottom,0px) + 24px)}}
 .rh,.rf{position:absolute;left:var(--sideL);right:var(--sideR);display:grid;grid-template-columns:1fr;column-gap:var(--gap);color:var(--muted);pointer-events:none;font-variant-numeric:tabular-nums}
-.rh{top:0;height:var(--topH);align-items:end;padding-bottom:12px}
-.rf{bottom:0;height:var(--botH);align-items:start;padding-top:12px}
+.rh{top:0;height:var(--topH);align-items:end;padding-bottom:7px}
+.rf{bottom:0;height:var(--botH);align-items:start;padding-top:6px}
 .rh span,.gh{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
 .rf span,.gf{font-size:12px;letter-spacing:.01em}
 .rh span,.rf span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;min-width:0}
@@ -159,7 +160,10 @@ mark.found{color:inherit;border-radius:3px;background:rgba(255,159,10,.55);anima
 @keyframes found{0%,60%{background:rgba(255,159,10,.55)}100%{background:transparent}}
 #fold{position:absolute;top:0;bottom:0;left:50%;width:var(--gap);transform:translateX(-50%);pointer-events:none;display:none;
   background:linear-gradient(90deg,transparent 0,var(--fold) 36%,var(--fold2) 50%,var(--fold) 64%,transparent 100%)}
-.spread #fold{display:block}
+.spread #fold{display:none}
+#spine{position:absolute;top:0;bottom:0;left:calc(var(--spineX,50%) - var(--gap)/2);width:var(--gap);pointer-events:none;display:none;z-index:2;
+  background:linear-gradient(90deg,transparent 0,var(--fold) 36%,var(--fold2) 50%,var(--fold) 64%,transparent 100%)}
+.spread #spine{display:block}
 #fold{z-index:1}
 #spreadLayer{position:absolute;inset:0;z-index:0;background:var(--paper);display:flex;align-items:center;justify-content:center}
 #spreadLayer img{width:100%;height:100%;object-fit:contain;display:block}
@@ -386,6 +390,7 @@ textarea{width:100%;border:0;background:none;font:inherit;font-size:16px;color:v
   <div id="ribbon"></div>
   <canvas id="ink"></canvas>
   <div id="curl"></div>
+  <div id="spine"></div>
   <div id="penBar" hidden>
     <button class="tool on" data-tool="pen" aria-label="Pen"><svg class="i" viewBox="0 0 24 24"><path d="M4 20l1.2-4.6L16.5 4.1a2 2 0 0 1 2.8 0l.6.6a2 2 0 0 1 0 2.8L8.6 18.8z"/><path d="M14.5 6l3.5 3.5"/></svg></button>
     <button class="tool" data-tool="hi" aria-label="Highlighter"><svg class="i" viewBox="0 0 24 24"><path d="M9 14l-3 3v3h6l3-3"/><path d="M9 14l7.5-9.5a2 2 0 0 1 3 0l.5.5a2 2 0 0 1 0 3L13 15.5z"/></svg></button>
@@ -917,7 +922,7 @@ function layout(){
     const W=innerWidth,h=hingeInfo();h.c+=(+S.set.hingeAdj||0);g=Math.max(g,h.w+24);
     const iL=envPx('env(safe-area-inset-left, 0px)')||0,iR=envPx('env(safe-area-inset-right, 0px)')||0;
     const half=Math.max(120,Math.min(h.c-Math.max(16,iL)-S.set.margin+16,W-h.c-Math.max(16,iR)-S.set.margin+16));
-    reader.style.setProperty('--sideL',Math.round(h.c-half)+'px');reader.style.setProperty('--sideR',Math.round(W-h.c-half)+'px');
+    reader.style.setProperty('--spineX',h.c+'px');reader.style.setProperty('--sideL',Math.round(h.c-half)+'px');reader.style.setProperty('--sideR',Math.round(W-h.c-half)+'px');
   }else{reader.style.removeProperty('--sideL');reader.style.removeProperty('--sideR')}
   reader.style.setProperty('--gap',g+'px');
   const A=area.clientWidth,H=area.clientHeight;
@@ -1117,8 +1122,8 @@ function snapView(){
   if(S.cols===2){
     const a=pageFace(2*S.page,'L',0,W,false),b=pageFace(2*S.page+1,'R',0,W,false);a.classList.add('clear');b.classList.add('clear');
     const rr=reader.getBoundingClientRect(),ar=area.getBoundingClientRect(),f=document.createElement('div');
-    f.className='vfold';f.style.cssText=`left:${ar.left-rr.left+S.colW}px;width:${S.g}px;top:${ar.top-rr.top}px;height:${ar.height}px`;
-    v.append(a,b,f);
+    f.className='vfold';f.style.cssText=`left:${ar.left-rr.left+S.colW}px;width:${S.g}px;top:0;height:100%`;
+    v.append(a,b);
   }else{const a=pageFace(S.page,'S',0,W,false);a.classList.add('clear');v.append(a)}
   const ic=inkCanvas(0,W);if(ic)v.appendChild(ic);
   return v;

@@ -4,7 +4,7 @@ import MediaPlayer
 
 /// Reads the book aloud with Apple's best installed voice. Keeps playing with the screen locked.
 /// The text arrives one paragraph at a time, so the voice pauses between paragraphs like a person would.
-final class Speaker: NSObject, AVSpeechSynthesizerDelegate {
+final class Speaker: NSObject, AVSpeechSynthesizerDelegate, @unchecked Sendable {
     static let shared = Speaker()
 
     private let synthesizer = AVSpeechSynthesizer()

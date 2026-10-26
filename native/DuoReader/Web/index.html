@@ -530,6 +530,21 @@ textarea{width:100%;border:0;background:none;font:inherit;font-size:16px;color:v
 .overlay .bar{width:180px}
 .overlay .m{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
 .overlay .tap{color:var(--accent);font-weight:600;font-size:15px;margin-top:6px}
+/* folded: the outer screen is the whole cover, like a closed book */
+#coverScreen{padding:0;gap:0;background:#0d0b09}
+#coverScreen .bgimg{opacity:.55;filter:blur(40px) saturate(1.3) brightness(.7)}
+#coverScreen .full{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+#coverScreen .fc{position:relative;max-width:100%;max-height:100%;display:block;border-radius:3px 6px 6px 3px;overflow:hidden;
+  box-shadow:0 0 0 .5px rgba(255,255,255,.08),0 30px 80px -20px rgba(0,0,0,.8)}
+#coverScreen img.fc{width:auto;height:auto;object-fit:contain}
+#coverScreen .cv.fc{width:min(100cqw,calc(100cqh * 2 / 3));max-width:none;height:auto;box-shadow:0 30px 80px -20px rgba(0,0,0,.8)}
+#coverScreen .full{container-type:size}
+#coverScreen .cv.fc .gen b{font-size:14cqw!important}
+#coverScreen .cv.fc .gen span{font-size:8.5cqw!important}
+#coverScreen .cv.fc .gen .bot{font-size:7cqw!important}
+#coverScreen .pg{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(255,255,255,.12)}
+#coverScreen .pg i{display:block;height:100%;background:rgba(255,255,255,.75)}
 .fin h3{font-family:var(--titlefont);font-size:28px;margin:0;font-weight:600}
 .fin .row3{display:flex;gap:26px;margin:4px 0 6px}
 .fin .row3 b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
@@ -2020,8 +2035,10 @@ function showCover(){
   if(!S.book||!S.set.foldCover)return;
   const p=prog(S.rec.id);
   const el=$('#coverScreen');
-  el.innerHTML=`<div class="bgimg" style="${coverBG(S.rec)}"></div>${coverHTML(S.rec)}<div class="t">${esc(S.book.title)}</div><div class="a">${esc(S.book.author||'')}</div>
-    <div class="bar"><i style="width:${Math.round((p.pct||0)*100)}%"></i></div><div class="m">${Math.round((p.pct||0)*100)}% · ${fmtMin(S.bookLeft||0)} left</div><div class="tap">Tap to keep reading</div>`;
+  const pct=Math.round((p.pct||0)*100),r=S.rec;
+  const cover=r.cover?`<img class="fc" src="${coverSrc(r)}" alt="">`:genCover(r).replace('class="cv"','class="cv fc"');
+  el.innerHTML=`<div class="bgimg" style="${coverBG(r)}"></div><div class="full">${cover}</div><div class="pg"><i style="width:${pct}%"></i></div>`;
+  el.setAttribute('aria-label',`${S.book.title}${S.book.author?' by '+S.book.author:''}, ${pct}% read. Tap to keep reading.`);el.setAttribute('role','button');
   el.hidden=false;closeSheets();hideSel();
 }
 $('#coverScreen').addEventListener('click',()=>{$('#coverScreen').hidden=true;S.lastAct=Date.now()});
